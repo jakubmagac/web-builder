@@ -1,0 +1,29 @@
+#root {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.bn-container[data-color-scheme=dark] {
+  --bn-colors-editor-background: #ffffff;
+  --bn-colors-editor-text: #3f3f3f;
+}
+
+.editorContainer {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  background-color: #1f1f1f;
+  color: #fff;
+}
+
+.sidebar {
+  width: 20%;
+  border-right: 1px solid black;
+}
+
+.editor {
+  width: 80%;
+  overflow-y: scroll;
+}
+
+

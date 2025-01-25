@@ -1,0 +1,17 @@
+.objective-block {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.objective-key input {
+  margin-left: 1rem;
+  background-color: #3f3f3f;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: #ccc;
+}
+
+.objective-key {
+  margin-bottom: 5px;
+}

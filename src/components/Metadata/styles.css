@@ -1,0 +1,11 @@
+.metadata-block input {
+  margin-left: 1rem;
+  background-color: #3f3f3f;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: #ccc;
+}
+
+.metadata-block > div {
+  margin-bottom: 0.5rem;
+}

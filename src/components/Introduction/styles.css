@@ -1,0 +1,9 @@
+.introduction {
+  border-radius: 4px;
+}
+
+.introduction-content > div:has(>.ProseMirror-trailingBreak:only-child):before {
+  position: absolute;
+  font-style: italic;
+  color: #aaa;
+}

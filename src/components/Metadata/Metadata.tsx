@@ -1,6 +1,6 @@
 import { createReactBlockSpec } from "@blocknote/react";
 import { useState } from "react";
-import "./styles.css";
+import { Switch } from "@material-tailwind/react";
 
 export const Metadata = createReactBlockSpec(
   {
@@ -11,8 +11,8 @@ export const Metadata = createReactBlockSpec(
       },
       title: { default: "", type: "string" },
       subtitle: { default: "", type: "string" },
-      week: { default: 0, type: "number" },
-      publicationWeek: { default: 0, type: "number" },
+      week: { default: '', type: "number" },
+      publicationWeek: { default: '', type: "number" },
       validation: { default: false, type: "boolean" },
     },
     content: "inline",
@@ -67,52 +67,50 @@ const MetadataBlockComponent = (props) => {
   };
 
   return (
-    <div className="metadata-block">
-      <h3>Metadata</h3>
+    <div role="alert" className="mt-3 w-full p-3 text-sm text-slate-600 rounded-md bg-[#2A2D3E]">
+      <h3 className="font-bold text-[#FF7AC6]">Metadata</h3>
       <div>
-        <strong>Title:</strong>
         <input
           type="text"
           value={title}
           onChange={handleTitleChange}
           placeholder="Enter Title"
+          className="bg-[#252836] py-1 px-2 rounded text-[#D1D5DB] mb-2"
         />
       </div>
       <div>
-        <strong>Subtitle:</strong>
         <input
           type="text"
           value={subtitle}
           onChange={handleSubtitleChange}
           placeholder="Enter Subtitle"
+          className="bg-[#252836] py-1 px-2 rounded text-[#D1D5DB] mb-2"
         />
       </div>
       <div>
-        <strong>Week:</strong>
         <input
           type="number"
           value={week}
           onChange={handleWeekChange}
           placeholder="Enter Week"
+          className="bg-[#252836] py-1 px-2 rounded text-[#D1D5DB] mb-2"
         />
       </div>
       <div>
-        <strong>Publication Week:</strong>
         <input
           type="number"
           value={publicationWeek}
           onChange={handlePublicationWeekChange}
           placeholder="Enter Publication Week"
+          className="bg-[#252836] py-1 px-2 rounded text-[#D1D5DB] mb-2"
         />
       </div>
-      <div>
-        <strong>Validation:</strong>
-        <input
-          type="checkbox"
-          checked={validation}
-          onChange={handleValidationChange}
-        />
-      </div>
+      <Switch 
+        checked={validation} 
+        onChange={() => handleValidationChange()} 
+        label="Validation" 
+        color="blue"
+      />
     </div>
   );
 };

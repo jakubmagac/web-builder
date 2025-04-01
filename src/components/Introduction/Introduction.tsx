@@ -1,6 +1,5 @@
 import { defaultProps } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
-import "./styles.css";
 
 export const Introduction = createReactBlockSpec(
   {
@@ -18,8 +17,8 @@ export const Introduction = createReactBlockSpec(
   {
     render: (props) => {
       return (
-        <div className="introduction" data-introduction-type={props.block.props.type}>
-          <div><h3>Introduction</h3></div>
+        <div className="mt-3 w-full p-3 text-sm text-slate-600 rounded-md bg-[#2A2D3E]">
+          <h3 className="font-bold text-[#FF7AC6]">Introduction</h3>
         </div>
       );
     },

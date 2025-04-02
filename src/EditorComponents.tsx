@@ -1,6 +1,7 @@
 import { RiAlertFill } from "react-icons/ri";
 import { BlockNoteSchema, defaultBlockSpecs, insertOrUpdateBlock } from "@blocknote/core";
 import { Introduction } from "./components/Introduction/Introduction";
+import { Objective } from "./components/Objectives/Objective";
 import { Objectives } from "./components/Objectives/Objectives";
 import { Step } from "./components/Step/Step";
 import { Metadata } from "./components/Metadata/Metadata";
@@ -19,6 +20,7 @@ import { AdditionalTasks } from "./components/AdditionalTasks/AdditionalTasks";
 
 type Introduction = typeof schema.Block;
 type Objectives = typeof schema.Block;
+type Objective = typeof schema.Block;
 type Metadata = typeof schema.Block;
 type Summary = typeof schema.Block;
 type Step = typeof schema.Block;
@@ -38,6 +40,7 @@ export const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     introduction: Introduction,
+    objective: Objective,
     objectives: Objectives,
     metadata: Metadata,
     summary: Summary,
@@ -77,12 +80,29 @@ export const insertObjectives = (editor: typeof schema.BlockNoteEditor) => ({
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "objectives",
+      children: [
+        {
+          type: "objective",
+        }
+      ]
     });
-
-    editor.focus()
   },
   aliases: [
     "objectives",
+  ],
+  group: "KPIMark",
+  icon: <RiAlertFill />,
+});
+
+export const insertObjective = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Objective",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "objective",
+    });
+  },
+  aliases: [
+    "objective",
   ],
   group: "KPIMark",
   icon: <RiAlertFill />,
@@ -94,8 +114,6 @@ export const insertMetadata = (editor: typeof schema.BlockNoteEditor) => ({
     insertOrUpdateBlock(editor, {
       type: "metadata",
     });
-
-    editor.focus()
   },
   aliases: [
     "metadata",

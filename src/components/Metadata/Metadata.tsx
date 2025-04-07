@@ -1,6 +1,6 @@
 import { createReactBlockSpec } from "@blocknote/react";
 import { useState } from "react";
-import { Switch } from "@material-tailwind/react";
+import { Switch, FormControlLabel } from "@mui/material";
 
 export const Metadata = createReactBlockSpec(
   {
@@ -15,7 +15,7 @@ export const Metadata = createReactBlockSpec(
       publicationWeek: { default: '', type: "number" },
       validation: { default: false, type: "boolean" },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {
@@ -105,12 +105,17 @@ const MetadataBlockComponent = (props) => {
           className="bg-[#252836] py-1 px-2 rounded text-[#D1D5DB] mb-2"
         />
       </div>
-      <Switch 
-        checked={validation} 
-        onChange={() => handleValidationChange()} 
-        label="Validation" 
-        color="blue"
+      <FormControlLabel
+          control={
+            <Switch 
+              checked={validation} 
+              onChange={() => handleValidationChange()} 
+              color="primary"
+            />
+          }
+          label="Validation"
       />
+      
     </div>
   );
 };

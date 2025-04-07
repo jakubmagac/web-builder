@@ -8,7 +8,7 @@ export const AdditionalTasks = createReactBlockSpec(
         default: "additionalTasks",
       },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

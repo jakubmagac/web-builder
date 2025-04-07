@@ -8,6 +8,7 @@ import "@blocknote/mantine/style.css";
 import axios from "axios";
 import SideBar from './components/SideBar/SideBar'
 import RemoveModal from "./components/RemoveModal/RemoveModal";
+import ConfigPage from './components/ConfigPage/ConfigPage'
 
 export default function App() {
   const [folderStructure, setFolderStructure] = useState([])
@@ -16,6 +17,7 @@ export default function App() {
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [fileToRemove, setFileToRemove] = useState('')
   const [openedFile, setOpenedFile] = useState('');
+  const [isConfig, setIsConfig] = useState(false);
 
   useEffect(() => {
     getFolderStructure()
@@ -31,6 +33,9 @@ export default function App() {
   }
   
   const openFile = async (path: string) => {
+    setIsConfig(false);
+    setFile('')
+
     try {
       const response = await axios.get(`http://localhost:3000/file?folderPath=${path}`)
       setFile(response.data)
@@ -106,6 +111,8 @@ export default function App() {
       <div className="sidebar">
         <SideBar 
           folderStructure={folderStructure} 
+          setIsConfig={setIsConfig}
+          isConfigPage={isConfig}
           createFile={createFile} 
           removeFile={removeFile} 
           openFile={openFile} 
@@ -117,11 +124,14 @@ export default function App() {
       <div className="editor relative">
         {
           loading ? 'loading' : (
-            <Editor 
-              file={file}
-              setLoading={setLoading}
-              uploadFile={uploadFile}
-            />
+            !isConfig ? (
+              <Editor 
+                file={file}
+                setLoading={setLoading}
+                uploadFile={uploadFile}
+              />
+            ) 
+            : <ConfigPage />
           )
         }
         {

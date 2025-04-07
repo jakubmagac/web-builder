@@ -1,5 +1,4 @@
 import { createReactBlockSpec } from "@blocknote/react";
-import { useState } from "react";
 
 export const Objectives = createReactBlockSpec(
   {

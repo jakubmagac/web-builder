@@ -10,7 +10,7 @@ export const WrongExample = createReactBlockSpec(
       },
       exampleName: { default: "", type: "string" },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

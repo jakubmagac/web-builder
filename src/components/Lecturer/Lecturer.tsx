@@ -8,7 +8,7 @@ export const Lecturer = createReactBlockSpec(
         default: "lecturer",
       },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

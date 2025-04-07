@@ -1,5 +1,5 @@
 import { createReactBlockSpec } from "@blocknote/react";
-import { Switch } from "@material-tailwind/react";
+import { FormControlLabel, Switch } from "@mui/material";
 import { useState } from "react";
 
 export const Solution = createReactBlockSpec(
@@ -11,7 +11,7 @@ export const Solution = createReactBlockSpec(
       },
       defaultHiddenValue: { default: false, type: "boolean" },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {
@@ -24,7 +24,16 @@ const SolutionBlockComponent = (props: any) => {
   const [hidden, setHiden] = useState(props.block.props.defaultHiddenValue)
   return (
     <div className="mt-3 w-full p-3 text-sm text-slate-600 rounded-md bg-[#2A2D3E]">
-      <Switch checked={hidden} onChange={() => setHiden(!hidden)} color="blue" label="Hide" />
+      <FormControlLabel
+          control={
+            <Switch 
+              checked={hidden} 
+              onChange={() => setHiden(!hidden)} 
+              color="primary"
+            />
+          }
+          label="Hide"
+      />
       <h3 className="font-bold text-[#FF7AC6]">Solution</h3>
       <div>{props.children}</div>
     </div>

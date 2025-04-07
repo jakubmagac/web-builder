@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFile, faFolder,faTrashCan, faPlusSquare, faCheckSquare, faRectangleXmark, faPenToSquare } from '@fortawesome/free-regular-svg-icons';
 import { useEffect, useState } from 'react';
+import { Settings } from './Settings';
 
 interface FolderStructureType {
   content: ContentType[]
@@ -16,6 +17,8 @@ interface ContentType {
 interface SideBarProps {
   folderStructure: FolderStructureType;
   openedFile: string;
+  isConfigPage: boolean;
+  setIsConfig: (value: boolean) => void;
   createFile: (path: string) => Promise<void>;
   openFile: (path: string) => Promise<void>;
   setOpenedFile: (fileName: string) => void;
@@ -185,7 +188,7 @@ const SideBarButton = ({item, openFile, removeFile, createFile, renameFile , ope
   </div>
 }
 
-const SideBar = ({folderStructure, openFile, removeFile, renameFile, createFile, openedFile, setOpenedFile}: SideBarProps) => {
+const SideBar = ({folderStructure, openFile, removeFile, renameFile, createFile, openedFile, setOpenedFile, isConfigPage, setIsConfig}: SideBarProps) => {
 
   const content = folderStructure.content?.map((item) => {
     return (
@@ -203,6 +206,15 @@ const SideBar = ({folderStructure, openFile, removeFile, renameFile, createFile,
   })
 
   return <div className='side-bar'>
+    <div 
+      className={`pt-1 border-b border-[#ccc] flex ${isConfigPage && 'bg-[#3b3b67]'} cursor-pointer`}
+      onClick={() => { setIsConfig(true); setOpenedFile('') }}
+    >
+      <div className='ml-2 w-[20px] h-[20px] mr-2'>
+        <Settings />
+      </div>
+      Config
+    </div>
     {content}
   </div>
 }

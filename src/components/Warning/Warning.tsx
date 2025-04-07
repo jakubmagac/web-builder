@@ -8,7 +8,7 @@ export const Warning = createReactBlockSpec(
         default: "warning",
       },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

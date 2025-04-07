@@ -17,37 +17,39 @@ import {
   insertWrongExample, 
   insertAdditionalResource, 
   insertAdditionalTasks, 
-  insertObjective
+  insertObjective,
+  insertMath
 } from "./EditorComponents";
 import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from "@blocknote/react";
-// import { 
-//   extractComment, 
-//   extractExample, 
-//   extractLecturer, 
-//   extractMetadata, 
-//   extractObjective, 
-//   extractResult, 
-//   extractSolution, 
-//   extractStep, 
-//   extractTask, 
-//   extractWarning, 
-//   extractWrongExample, 
-//   isTableSeparator, 
-//   checkForAsterix 
-// } from "./extractFunctions";
-
-import { PartialBlock } from "@blocknote/core";
+import { 
+  extractComment, 
+  extractExample, 
+  extractLecturer, 
+  extractMetadata, 
+  extractObjective, 
+  extractResult, 
+  extractSolution, 
+  extractStep, 
+  extractTask, 
+  extractWarning, 
+  extractWrongExample, 
+  isTableSeparator, 
+  checkForAsterix,
+  parseBlocks,
+  transformSyntax,
+  traverseElements
+} from "./extractFunctions";
 
 import { schema } from "./EditorComponents";
 import { Block } from "@blocknote/core";
 
 import { useEffect, useState } from "react";
 
-type Token = { type: string; content?: string, props?: any };
+// type Token = { type: string; content?: string, props?: any };
 
 interface EditorProps { 
   file: string, 
@@ -56,7 +58,6 @@ interface EditorProps {
 }
 
 export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
-  // console.log(file)
   const editor = useCreateBlockNote({ 
     schema,
     uploadFile
@@ -66,101 +67,359 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
   
   useEffect(() => {
     setLoading(true)
-    console.log(
-      markdownToBlockNote(file)
-    )
-
-    editor.insertBlocks(markdownToBlockNote(file), editor.document[editor.document.length - 1].id);
-
+    transformToSchema(file);
     setLoading(false)
   }, [file])
 
-  function tokenize(text: string): Token[] {
-    const tokens: Token[] = [];
-    const lines = text.split("\n");
-    let currentSection = '';
+  const transformToSchema = async (data: string) => {
+    if(!data) return;
+
+    const lines = data.concat('\n').split('\n');
+    let inObjectiveSection = false;
+    let objectivesWasRead = false;
+    let inResourcesSection = false;
+    let resourcesWasRead = false;
+    let inAdditionalResourcesSection = false;
+    let additionalResourcesWasRead = false;
+    let inAdditionalTasksSection = false;
+    let additionalTasksWasRead = false;
+    let inCodeSection = false;
+    let inCodeWasRead = false;
+    let inTableSection = false;
+    let tableWasRead = false;
+    let inMath = false;
+
+    let insideBlock = false;
+
+    const {title, subtitle, week, publicationWeek, validation} = extractMetadata(lines)
+
+    editor.insertBlocks(
+      [{ type: "metadata", props: { title, subtitle, week, publicationWeek, validation } }],
+      editor.document[editor.document.length - 1].id
+    )
+    
+    let inMetadata = false; // Track if inside metadata
+
+    const codeBlock = [];
+    const resourcesBlock = [];
+    const objectivesBlock = [];
+    const additionalTasksBlock = [];
+    const mathBlock = [];
+    const nestedBlock = [];
+
+    const tableBuffer = [];
 
     for (const line of lines) {
-        if (line.startsWith("# ")) {
-            tokens.push({ type: "HEADER1", content: line.slice(2) });
-        } else if (line.startsWith("## Ciele")) {
-            tokens.push({ type: "OBJECTIVES" });
-            currentSection = 'objectives'
-        } else if (line.startsWith("## Úvod")) {
-          tokens.push({ type: "INTRODUCTION" });
-        } else if (line.startsWith("## Záver")) {
-          tokens.push({ type: "SUMMARY" });
-        } else if (line.startsWith("## ")) {
-            tokens.push({ type: "HEADER2", content: line.slice(3) });
-        } else if (line.startsWith("### ")) {
-            tokens.push({ type: "HEADER3", content: line.slice(4) });
-        } else if (line.match(/^- /) || line.match(/^\d+\.\s+/)) {
-          if (currentSection === 'objectives') {
-              const match = line.match(/(?:^\d+\.\s*|-)\s*([^{\n]+)\s*\{([^{}]+)\}/);
-              console.log(match)
-              // if (match) {
-              //     const text = match[1].trim();  // Text pred zátvorkami
-              //     const bracketContent = match[2]?.trim();  // Obsah zátvoriek, ak existuje
-              //     tokens.push({ type: "OBJECTIVE", props: { key: bracketContent, name: text } });
-              // } else {
-              //     tokens.push({ type: "OBJECTIVE", props: { name: line } });
-              // }
-          } else {
-              const listItemMatch = line.match(/^\d+\.\s+(.*)/i); 
-              if (listItemMatch) {
-                  tokens.push({ type: "NUMBER_LIST_ITEM", content: listItemMatch[1] });
-              } else {
-                  tokens.push({ type: "BULLET_LIST_ITEM", content: line.slice(2) });  // Nečíslovaný zoznam
-              }
-          }
-        } else if (/\*\*(.*?)\*\*/.test(line)) {
-            tokens.push({ type: "BOLD", content: line.replace(/\*\*(.*?)\*\*/, '$1') });
-        } else if (/\*(.*?)\*/.test(line)) {
-            tokens.push({ type: "ITALIC", content: line.replace(/\*(.*?)\*/, '$1') });
+      let wasInserted = false;
+
+      if (line.trim() === "---") {
+        inMetadata = !inMetadata;
+        wasInserted = true; 
+      }
+    
+      if (inMetadata) {
+        wasInserted = true;
+      }
+
+      if (/^## Úvod\b/i.test(line) || /^## Introduction\b/i.test(line)) {
+        editor.insertBlocks([{ type: "introduction" }], editor.document[editor.document.length - 1].id);
+        wasInserted = true;
+      }
+
+      if (/^## Záver\b/i.test(line) || /^## Summar\by/i.test(line)) {
+        editor.insertBlocks([{ type: "summary" }], editor.document[editor.document.length - 1].id);
+        wasInserted = true;
+      }
+      
+      if (/^## Ciele\b/i.test(line) || /^## Objectives\b/i.test(line)) {
+        inObjectiveSection = true;
+        wasInserted = true;
+      }
+
+      if (/^## Doplňujúce zdroje\b/i.test(line) || /^## Additional resources\b/i.test(line)) {
+        inAdditionalResourcesSection = true;
+        wasInserted = true;
+      }
+
+      if (/^## Zdroje\b/i.test(line) || /^## Resources\b/i.test(line)) {
+        inResourcesSection = true;
+        wasInserted = true;
+      }
+
+      if (/^## Krok\b/i.test(line) || /^## Step\b/i.test(line)) {
+        const { valueInsideBraces, textAfterColon } = extractStep(line);
+        editor.insertBlocks([{ type: "step", props: { key: valueInsideBraces, name: textAfterColon } }], editor.document[editor.document.length - 1].id);
+        wasInserted = true;
+      }
+
+      if (/^## Doplňujúce úlohy\b/i.test(line) || /^## Additional tasks\b/i.test(line)) {
+        inAdditionalTasksSection = true;
+        wasInserted = true;
+      }
+
+      if(line.startsWith("```")) {
+        inCodeSection = true
+      }
+
+      if(tableBuffer.length > 0) {
+        if(isTableSeparator(line)) {
+          inTableSection = true;
         } else {
-            tokens.push({ type: "TEXT", content: line });
+          if(!inTableSection) {
+            const markdown = await editor.tryParseMarkdownToBlocks(line)
+            editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+          }
         }
+      } 
+
+      if(inTableSection || /\|/.test(line)) {
+        tableBuffer.push(line);
+        wasInserted = true;
+        tableWasRead = true
+      }
+
+      if (inObjectiveSection && (/^(?:\d+\.\s+|-+\s+)/.test(line.trim()))) {
+        const { valueInsideBraces, restOfString } = extractObjective(line);
+        objectivesBlock.push({ key: valueInsideBraces, name: restOfString });
+        objectivesWasRead = true;
+        wasInserted = true;
+      }
+
+      if (inResourcesSection && (/^(?:\d+\.\s+|-+\s+)/.test(line.trim())) && line !== '') {
+        resourcesBlock.push(line)
+        resourcesWasRead = true;
+        wasInserted = true;
+      }
+
+      if (inAdditionalResourcesSection && (/^(?:\d+\.\s+|-+\s+)/.test(line.trim())) && line !== '') {
+        resourcesBlock.push(line)
+        additionalResourcesWasRead = true;
+        wasInserted = true;
+      }
+
+      if (inAdditionalTasksSection && line !== '') {
+        if (!/^## Doplňujúce úlohy/i.test(line) && !/^## Additional tasks/i.test(line)) {
+          additionalTasksBlock.push(line)
+        }
+        additionalTasksWasRead = true;
+        wasInserted = true;
+      }
+
+      if(inCodeSection && line !== '') {
+        codeBlock.push(line)
+        inCodeWasRead = true 
+        wasInserted = true
+      }
+
+      if(objectivesWasRead && line === '') {
+        editor.insertBlocks([{ type: "objectives", children: 
+          objectivesBlock.map(o => 
+            ({ type: "objective", props: { key: o.key, name: o.name } }) 
+          )
+          }], editor.document[editor.document.length - 1].id);
+
+        inObjectiveSection = false
+        objectivesWasRead = false
+        wasInserted = true
+        objectivesBlock.length = 0 
+      }
+
+      if(additionalTasksWasRead && line === '') {
+
+        const blocks = transformSyntax(additionalTasksBlock)
+        await traverseElementsAndUpdate(blocks, null, null);
+
+        editor.insertBlocks([{ 
+          type: "additionalTasks", 
+          children: blocks.flat()
+        }], editor.document[editor.document.length - 1].id);
+
+
+        inAdditionalTasksSection = false
+        additionalTasksWasRead = false
+        wasInserted = true
+        additionalTasksBlock.length = 0 
+      }
+
+      if(resourcesWasRead && line === '') {
+        inResourcesSection = false;
+
+        const resourceChildren = await Promise.all(
+          resourcesBlock.map((resource) => editor.tryParseMarkdownToBlocks(resource))
+        )
+
+        editor.insertBlocks([{ 
+          type: "resource", 
+          children: resourceChildren.flat(), 
+        }], editor.document[editor.document.length - 1].id);
+
+        resourcesWasRead = false;
+        wasInserted = true;
+        resourcesBlock.length = 0;
+      }
+
+      if(additionalResourcesWasRead && line === '') {
+        inAdditionalResourcesSection = false;
+
+        const resourceChildren = await Promise.all(
+          resourcesBlock.map((resource) => editor.tryParseMarkdownToBlocks(resource))
+        )
+
+        editor.insertBlocks([{ 
+          type: "additionalResources", 
+          children: resourceChildren.flat(), 
+        }], editor.document[editor.document.length - 1].id);
+
+        additionalResourcesWasRead = false;
+        wasInserted = true;
+        resourcesBlock.length = 0;
+      }
+
+      if(inCodeWasRead && line === '') {
+        const markdown = await editor.tryParseMarkdownToBlocks(codeBlock.join("\n"))
+        editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+        inCodeSection = false;
+        inCodeWasRead = false;
+        wasInserted = true;
+        codeBlock.length = 0;
+      }
+    
+      if(tableWasRead && line === '') {
+        const markdown = await editor.tryParseMarkdownToBlocks(tableBuffer.join("\n"))
+        editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+        inTableSection = false;
+        tableWasRead = false;
+        wasInserted = true;
+        tableBuffer.length = 0;
+      }
+
+      if(!line.startsWith("> ") && !wasInserted){
+        insideBlock = false;
+        const blocks = transformSyntax(nestedBlock)
+        await traverseElementsAndUpdate(blocks, null, null);
+
+        if(!inAdditionalTasksSection) {
+          editor.insertBlocks(
+            blocks,
+            editor.document[editor.document.length - 1].id
+          )
+          nestedBlock.length = 0
+        }        
+      }
+
+      if(line.startsWith("> ") && !inAdditionalTasksSection){
+        insideBlock = true
+      }
+
+      if(insideBlock) {
+        nestedBlock.push(line)
+      }
+
+      if(line.startsWith("$$")){
+        if(inMath) {
+          inMath = false
+          const mathChildren = mathBlock.map((m) => ({ type: "paragraph", content: m }))
+          editor.insertBlocks(
+            [{ type: "math", children: mathChildren }],
+            editor.document[editor.document.length - 1].id
+          )
+          wasInserted = true;
+        } else {
+          wasInserted = true;
+          inMath = true
+        }
+      }
+
+      if(inMath && !line.startsWith("$$")) {
+        mathBlock.push(line)
+        wasInserted = true;
+      }
+
+      if (!wasInserted && !/^>/.test(line) && line !== '') {
+        const markdown = await editor.tryParseMarkdownToBlocks(line)
+        editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+      }
+
     }
-    return tokens;
-  }
 
-  function parseToBlockNote(tokens: Token[]): PartialBlock[] {
-    return tokens.map(token => {
-        switch (token.type) {
-            case "HEADER1":
-                return { type: "heading", level: 1, content: token.content };
-            case "HEADER2":
-                return { type: "heading", level: 2, content: token.content };
-            case "HEADER3":
-                return { type: "heading", level: 3, content: token.content };
-            case "BULLET_LIST_ITEM":
-                return { type: "bulletListItem", content: token.content };
-            case "NUMBER_LIST_ITEM":
-                return { type: "numberListItem", content: token.content };
-            case "OBJECTIVES":
-                return { type: "objectives" };
-            case "OBJECTIVE":
-              return { type: "objective", props: {name: token.props.name, key: token.props.key } };
-            case "INTRODUCTION":
-              return { type: "introduction" };
-            case "SUMMARY":
-              return { type: "summary" };
-            case "BOLD":
-                return { type: "text", content: `**${token.content}**` };
-            case "ITALIC":
-                return { type: "text", content: `*${token.content}*` };
-            default:
-                return { type: "paragraph", content: token.content };
+    async function traverseElementsAndUpdate(elements, parent, indexInParent) {
+      if (Array.isArray(elements)) {
+        for (let i = 0; i < elements.length; i++) {
+          const element = elements[i];
+    
+          if (element.type === 'markdown' && element._markdownContent) {
+            if (element.isCodeBlock || element.isMath) {
+              if(element.isCodeBlock) {
+                const markdown = 
+                  await editor.tryParseMarkdownToBlocks('```\n' + element._markdownContent + '\n```')
+                elements[i] = markdown[0];
+              }
+              if(element.isMath) {
+                const children = 
+                  await editor.tryParseMarkdownToBlocks(element._markdownContent)
+
+                const markdown = 
+                  [{ type: "math", children: children }]
+                elements[i] = markdown[0];
+              }
+              
+            } else {
+              // Bežné markdown bloky spracujeme ako predtým
+              const blocksFromMarkdown = await editor.tryParseMarkdownToBlocks(element._markdownContent);
+              if (Array.isArray(blocksFromMarkdown) && blocksFromMarkdown.length > 0) {
+                elements[i] = { ...blocksFromMarkdown[0], children: element.children };
+                if (blocksFromMarkdown.length > 1) {
+                  elements.splice(i + 1, 0, ...blocksFromMarkdown.slice(1).map(block => ({ ...block, children: [] })));
+                  i += blocksFromMarkdown.length - 1;
+                }
+              } else if (blocksFromMarkdown && typeof blocksFromMarkdown === 'object') {
+                elements[i] = { ...blocksFromMarkdown, children: element.children };
+              }
+            }
+          }
+    
+          if (element.children && Array.isArray(element.children)) {
+            await traverseElementsAndUpdate(element.children, elements, i);
+          }
         }
-    });
+      } else if (elements && typeof elements === 'object') { // ak je to samostatny objekt
+        if (elements.type === 'markdown' && elements._markdownContent && parent && typeof indexInParent === 'number') {
+
+          if (elements.isCodeBlock || elements.isMath) {
+            if(elements.isCodeBlock) {
+              const markdown =
+                await editor.tryParseMarkdownToBlocks('```\n' + elements._markdownContent + '\n```');
+              if (Array.isArray(markdown) && markdown.length > 0) {
+                parent[indexInParent] = markdown[0];
+              }
+            }
+            if(elements.isMath) {
+              const children = 
+                await editor.tryParseMarkdownToBlocks(elements._markdownContent)
+
+              if (Array.isArray(children) && children.length > 0) {
+                parent[indexInParent] = children[0];
+              }
+            }
+          }
+          
+          else {
+            const blocksFromMarkdown = await editor.tryParseMarkdownToBlocks(elements._markdownContent);
+            if (Array.isArray(blocksFromMarkdown) && blocksFromMarkdown.length > 0) {
+              parent[indexInParent] = { ...blocksFromMarkdown[0], children: elements.children };
+            } else if (blocksFromMarkdown && typeof blocksFromMarkdown === 'object') {
+              parent[indexInParent] = { ...blocksFromMarkdown, children: elements.children };
+            }
+          }
+        }
+        if (elements.children && Array.isArray(elements.children)) {
+          await traverseElementsAndUpdate(elements.children, elements, null);
+        }
+      }
+    }
   }
 
-  function markdownToBlockNote(markdownText: string): PartialBlock[] {
-    const tokens = tokenize(markdownText);
-    return parseToBlockNote(tokens);
-  }
   
-
   if(!file) {
     return <>Not selected file</>
   }
@@ -197,7 +456,8 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
               insertExample(editor),
               insertWrongExample(editor),
               insertAdditionalResource(editor),
-              insertAdditionalTasks(editor)
+              insertAdditionalTasks(editor),
+              insertMath(editor)
             ],
             query
           )

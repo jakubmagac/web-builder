@@ -1,4 +1,3 @@
-import { RiAlertFill } from "react-icons/ri";
 import { BlockNoteSchema, defaultBlockSpecs, insertOrUpdateBlock } from "@blocknote/core";
 import { Introduction } from "./components/Introduction/Introduction";
 import { Objective } from "./components/Objectives/Objective";
@@ -17,6 +16,8 @@ import { Example } from "./components/Example/Example";
 import { WrongExample } from "./components/WrongExample/WrongExample";
 import { AdditionalResources } from "./components/AdditionalResources/AdditionalResource";
 import { AdditionalTasks } from "./components/AdditionalTasks/AdditionalTasks";
+import { Math } from "./components/Math/Math";
+import KPIIcon from "./assets/kpi";
 
 type Introduction = typeof schema.Block;
 type Objectives = typeof schema.Block;
@@ -35,6 +36,7 @@ type Example = typeof schema.Block;
 type WrongExample = typeof schema.Block;
 type AdditionalResources = typeof schema.Block;
 type AdditionalTasks = typeof schema.Block;
+type Math = typeof schema.Block;
 
 export const schema = BlockNoteSchema.create({
   blockSpecs: {
@@ -55,7 +57,8 @@ export const schema = BlockNoteSchema.create({
     example: Example,
     wrongExample: WrongExample,
     additionalResources: AdditionalResources,
-    additionalTasks: AdditionalTasks
+    additionalTasks: AdditionalTasks,
+    math: Math
   },
 });
 
@@ -72,7 +75,9 @@ export const insertIntroduction = (editor: typeof schema.BlockNoteEditor) => ({
     "introduction",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertObjectives = (editor: typeof schema.BlockNoteEditor) => ({
@@ -91,7 +96,9 @@ export const insertObjectives = (editor: typeof schema.BlockNoteEditor) => ({
     "objectives",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertObjective = (editor: typeof schema.BlockNoteEditor) => ({
@@ -105,7 +112,9 @@ export const insertObjective = (editor: typeof schema.BlockNoteEditor) => ({
     "objective",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertMetadata = (editor: typeof schema.BlockNoteEditor) => ({
@@ -119,7 +128,9 @@ export const insertMetadata = (editor: typeof schema.BlockNoteEditor) => ({
     "metadata",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertSummary = (editor: typeof schema.BlockNoteEditor) => ({
@@ -135,7 +146,9 @@ export const insertSummary = (editor: typeof schema.BlockNoteEditor) => ({
     "summary",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertStep = (editor: typeof schema.BlockNoteEditor) => ({
@@ -151,7 +164,9 @@ export const insertStep = (editor: typeof schema.BlockNoteEditor) => ({
     "step",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertResource = (editor: typeof schema.BlockNoteEditor) => ({
@@ -173,7 +188,9 @@ export const insertResource = (editor: typeof schema.BlockNoteEditor) => ({
     "resource",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertAdditionalResource = (editor: typeof schema.BlockNoteEditor) => ({
@@ -195,7 +212,9 @@ export const insertAdditionalResource = (editor: typeof schema.BlockNoteEditor) 
     "resource",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertAdditionalTasks = (editor: typeof schema.BlockNoteEditor) => ({
@@ -222,7 +241,9 @@ export const insertAdditionalTasks = (editor: typeof schema.BlockNoteEditor) => 
     "additionalTasks",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertTask = (editor: typeof schema.BlockNoteEditor) => ({
@@ -244,7 +265,9 @@ export const insertTask = (editor: typeof schema.BlockNoteEditor) => ({
     "task",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertWarning = (editor: typeof schema.BlockNoteEditor) => ({
@@ -266,7 +289,9 @@ export const insertWarning = (editor: typeof schema.BlockNoteEditor) => ({
     "warning",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertSolution = (editor: typeof schema.BlockNoteEditor) => ({
@@ -288,7 +313,9 @@ export const insertSolution = (editor: typeof schema.BlockNoteEditor) => ({
     "solution",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertResult = (editor: typeof schema.BlockNoteEditor) => ({
@@ -310,7 +337,9 @@ export const insertResult = (editor: typeof schema.BlockNoteEditor) => ({
     "result",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertComment = (editor: typeof schema.BlockNoteEditor) => ({
@@ -332,7 +361,9 @@ export const insertComment = (editor: typeof schema.BlockNoteEditor) => ({
     "comment",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertLecturer = (editor: typeof schema.BlockNoteEditor) => ({
@@ -354,7 +385,9 @@ export const insertLecturer = (editor: typeof schema.BlockNoteEditor) => ({
     "lecturer",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertExample = (editor: typeof schema.BlockNoteEditor) => ({
@@ -376,7 +409,9 @@ export const insertExample = (editor: typeof schema.BlockNoteEditor) => ({
     "example",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });
 
 export const insertWrongExample = (editor: typeof schema.BlockNoteEditor) => ({
@@ -398,5 +433,30 @@ export const insertWrongExample = (editor: typeof schema.BlockNoteEditor) => ({
     "wrongExample",
   ],
   group: "KPIMark",
-  icon: <RiAlertFill />,
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
+});
+
+
+export const insertMath = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Math",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "math",
+      children: [
+        {
+          type: "paragraph",
+          content: ""
+        }
+      ]
+    });
+  },
+  aliases: [
+    "math",
+  ],
+  group: "KPIMark",
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
 });

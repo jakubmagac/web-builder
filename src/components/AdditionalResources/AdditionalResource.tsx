@@ -8,7 +8,7 @@ export const AdditionalResources = createReactBlockSpec(
         default: "additionalResources",
       },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

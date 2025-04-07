@@ -8,7 +8,7 @@ export const Task = createReactBlockSpec(
         default: "task",
       },
     },
-    content: "inline",
+    content: "none",
   },
   {
     render: (props) => {

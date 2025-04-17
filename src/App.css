@@ -26,4 +26,10 @@
   overflow-y: scroll;
 }
 
+.editor a {
+  color: rgb(93, 93, 245);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 

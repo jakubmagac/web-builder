@@ -181,7 +181,7 @@ const ConfigPage = () => {
   const handlerSetPublishedWeeks = (e: React.ChangeEvent<HTMLInputElement>) => {
     setData(prevData => ({
       ...prevData,
-      "published-weeks": e.target.value,
+      "published-weeks": parseInt(e.target.value),
     }));
   };
 

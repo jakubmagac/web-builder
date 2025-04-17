@@ -137,7 +137,6 @@ export function checkForAsterix(line: string) {
   return line.includes("*");  
 }
 
-
 export function transformSyntax(lines: string[]) {
   const result = [];
   const stack = [];

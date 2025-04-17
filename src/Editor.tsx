@@ -26,50 +26,142 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { 
-  extractComment, 
-  extractExample, 
-  extractLecturer, 
   extractMetadata, 
   extractObjective, 
-  extractResult, 
-  extractSolution, 
   extractStep, 
-  extractTask, 
-  extractWarning, 
-  extractWrongExample, 
   isTableSeparator, 
-  checkForAsterix,
-  parseBlocks,
   transformSyntax,
-  traverseElements
 } from "./extractFunctions";
 
 import { schema } from "./EditorComponents";
 import { Block } from "@blocknote/core";
 
 import { useEffect, useState } from "react";
-
-// type Token = { type: string; content?: string, props?: any };
+import { Button } from "@mui/material";
 
 interface EditorProps { 
   file: string, 
-  setLoading: (val: boolean) => void, 
-  uploadFile: (file: File) => Promise<string> 
+  openedFilePath: string;
+  setLoading: (val: boolean) => void;
+  finalMarkdown: string;
+  setFinalMarkdown: (val: string) => void;
+  uploadFile: (file: File) => Promise<string>;
+  writeFile: (path: string, content: string) => Promise<void>;
 }
 
-export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
+export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath, setFinalMarkdown, finalMarkdown }: EditorProps) => {
   const editor = useCreateBlockNote({ 
     schema,
     uploadFile
   }, [file])
 
   const [blocks, setBlocks] = useState<Block[]>(editor.document);
+  console.log(blocks)
   
   useEffect(() => {
     setLoading(true)
     transformToSchema(file);
     setLoading(false)
   }, [file])
+
+  useEffect(() => {
+    const getMarkdown = async () => {
+      const markdown = await transformToKPIMark(blocks) || ''
+      setFinalMarkdown(markdown)
+    };
+  
+    getMarkdown();
+    runValidators(blocks)
+  }, [blocks]);
+
+  const runValidators = (blocks) => {
+    let containsObjectives = false;
+    for (const block of blocks) {
+      if(block.type === 'objectives') {
+        containsObjectives = true
+      } 
+    }
+
+    return {
+
+    }
+  }
+
+  const supportedMarkdownTypes = [
+    "paragraph",
+    "heading",
+    "codeBlock",
+    "bulletListItem",
+    "numberedListItem",
+    "checkListItem",
+    "table",
+    "file",
+    "image",
+    "video",
+    "audio"
+  ];
+
+  const kpiMarkBlocks = [
+    "task",
+    "solution",
+    "result",
+    "comment",
+    "warning",
+    "lecturer",
+    "example",
+    "wrongExample"
+  ];
+
+  async function transformBlocksToSyntax(blocks, indentLevel = 1) {
+    let output = '';
+    const indent = '> '.repeat(indentLevel);
+  
+    for (const block of blocks) {
+      switch (block.type) {
+        case 'task':
+        case 'solution':
+        case 'result':
+        case 'comment':
+        case 'warning':
+        case 'lecturer':
+        case 'example':
+        case 'wrongExample':
+          { 
+          const keyword = Object.keys(keywordMap).find(key => keywordMap[key] === block.type);
+          const title = block.props.exampleName ? ` ${block.props.exampleName}` : '';
+          const hiddenStar = block.props.defaultHiddenValue ? '*' : '';
+
+          if(block.props.defaultHiddenValue) {
+            console.log(block)
+          }
+
+          output += `${indent}${keyword}${hiddenStar}:${title}\n`;
+          
+          if (block.children && block.children.length > 0) {
+
+            for (const child of block.children) {
+              if(supportedMarkdownTypes.includes(child.type)) {
+                output += await transformBlocksToSyntax([child], indentLevel) + '\n';
+              } else {
+                output += await transformBlocksToSyntax([child], indentLevel + 1) + '\n';
+              }
+            }
+          
+          }
+          break; }
+        default:
+          output += indent + await editor.blocksToMarkdownLossy([block]) + '\n';
+          break;
+      }
+    }
+  
+    return output.trimEnd();
+  }
+
+  const handleSave = () => {
+    writeFile(openedFilePath, finalMarkdown)
+  }
+
 
   const transformToSchema = async (data: string) => {
     if(!data) return;
@@ -185,13 +277,13 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
         wasInserted = true;
       }
 
-      if (inResourcesSection && (/^(?:\d+\.\s+|-+\s+)/.test(line.trim())) && line !== '') {
+      if (inResourcesSection && (/^(?:\d+\.\s+|[-*+]+\s+)/.test(line.trim())) && line !== '') {
         resourcesBlock.push(line)
         resourcesWasRead = true;
         wasInserted = true;
       }
 
-      if (inAdditionalResourcesSection && (/^(?:\d+\.\s+|-+\s+)/.test(line.trim())) && line !== '') {
+      if (inAdditionalResourcesSection && (/^(?:\d+\.\s+|[-*+]+\s+)/.test(line.trim())) && line !== '') {
         resourcesBlock.push(line)
         additionalResourcesWasRead = true;
         wasInserted = true;
@@ -337,6 +429,10 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
 
       if (!wasInserted && !/^>/.test(line) && line !== '') {
         const markdown = await editor.tryParseMarkdownToBlocks(line)
+        if(markdown[0].type === 'image') {
+          markdown[0].props.url = 'http://localhost:3000/course/content/labs/' + markdown[0].props.url
+          console.log(markdown[0].props.url)
+        }
         editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
       }
 
@@ -419,6 +515,104 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
     }
   }
 
+  const transformToKPIMark = async (data: Block[]) => {
+    if(!data) return
+
+    let markdown = ''
+
+    for (const element of data) {
+      if(element.type === 'metadata') {
+        markdown += '---\n'
+
+        if(element.props.title) {
+          markdown += 'Title: ' + element.props.title + '\n'
+        }
+
+        if(element.props.subtitle) {
+          markdown += 'Subtitle: ' + element.props.subtitle + '\n'
+        }
+
+        if(element.props.publicationWeek) {
+          markdown += 'Publication-week: ' + element.props.publicationWeek + '\n'
+        }
+
+        if(element.props.week) {
+          markdown += 'Week: ' + element.props.week + '\n'
+        }
+
+        markdown += 'Validation: ' + (element.props.validation ? 'strict' : 'None') + '\n'
+        markdown += '---\n'
+      }
+
+      if(element.type === 'introduction') {
+        markdown += '\n## Introduction \n'
+      }
+
+      if(element.type === 'summary') {
+        markdown += '\n## Summary \n'
+      }
+
+      if(element.type === 'objectives') {
+        markdown += '## Objectives\n\n'
+        element.children.forEach((e, id) => {
+          markdown += 
+            e.props.key 
+              ? (id + 1) + '.' + '{' + e.props.key + '} ' + e.props.name + '\n'
+              : (id + 1) + '.' + e.props.name + '\n'
+        })
+      }
+
+      if(element.type === 'step') {
+        markdown += '\n## Step' + (
+          element.props.name 
+            ? ': ' + element.props.name + ' {' + element.props.key + '}'
+            : ' {' + element.props.key + '}'
+          ) + '\n'
+      }
+
+      if(element.type === 'resource') {
+        markdown += '\n## Resources\n'
+        const markdownFromBlocks = await editor.blocksToMarkdownLossy(element.children);
+        markdown += markdownFromBlocks + '\n'
+      }
+
+      if(element.type === 'additionalResources') {
+        markdown += '\n## Additional resources\n'
+        const markdownFromBlocks = await editor.blocksToMarkdownLossy(element.children);
+        markdown += markdownFromBlocks + '\n';
+      }
+
+      if(element.type === 'additionalTasks') {
+        markdown += '\n## Additional tasks\n'
+        const markdownFromBlocks = await transformBlocksToSyntax(element.children);
+        markdown += markdownFromBlocks + '\n';
+      }
+
+      if(kpiMarkBlocks.includes(element.type)) {
+        const markdownFromBlocks = await transformBlocksToSyntax([element]);
+        markdown += markdownFromBlocks + '\n';
+      }
+
+      if(supportedMarkdownTypes.includes(element.type)) {
+        const markdownFromBlocks = await editor.blocksToMarkdownLossy([element]);
+        markdown += markdownFromBlocks + '\n'
+      }
+
+    }
+
+    return markdown;
+  }
+
+  const keywordMap = {
+    "Task": "task",
+    "Solution": "solution",
+    "Result": "result",
+    "Comment": "comment",
+    "Warning": "warning",
+    "Lecturer": "lecturer",
+    "Example": "example",
+    "Wrong example": "wrongExample"
+  };
   
   if(!file) {
     return <>Not selected file</>
@@ -427,42 +621,45 @@ export const Editor = ({ file, setLoading, uploadFile }: EditorProps) => {
   type editor = typeof schema.BlockNoteEditor;
 
   return (
-    <BlockNoteView
-      editor={editor} 
-      onChange={() => {
-        setBlocks(editor.document);
-      }} 
-      slashMenu={false}
-    >
-      <SuggestionMenuController
-        triggerCharacter={"/"}
-        getItems={async (query: string) =>
-          filterSuggestionItems(
-            [
-              ...getDefaultReactSlashMenuItems(editor), 
-              insertIntroduction(editor), 
-              insertObjectives(editor), 
-              insertObjective(editor),
-              insertMetadata(editor), 
-              insertSummary(editor), 
-              insertStep(editor), 
-              insertResource(editor),
-              insertTask(editor),
-              insertSolution(editor),
-              insertResult(editor),
-              insertComment(editor),
-              insertWarning(editor),
-              insertLecturer(editor),
-              insertExample(editor),
-              insertWrongExample(editor),
-              insertAdditionalResource(editor),
-              insertAdditionalTasks(editor),
-              insertMath(editor)
-            ],
-            query
-          )
-        }
-      />
-    </BlockNoteView>
+    <div>
+      <BlockNoteView
+        editor={editor} 
+        onChange={() => {
+          setBlocks(editor.document);
+        }} 
+        slashMenu={false}
+      >
+        <SuggestionMenuController
+          triggerCharacter={"/"}
+          getItems={async (query: string) =>
+            filterSuggestionItems(
+              [
+                ...getDefaultReactSlashMenuItems(editor), 
+                insertIntroduction(editor), 
+                insertObjectives(editor), 
+                insertObjective(editor),
+                insertMetadata(editor), 
+                insertSummary(editor), 
+                insertStep(editor), 
+                insertResource(editor),
+                insertTask(editor),
+                insertSolution(editor),
+                insertResult(editor),
+                insertComment(editor),
+                insertWarning(editor),
+                insertLecturer(editor),
+                insertExample(editor),
+                insertWrongExample(editor),
+                insertAdditionalResource(editor),
+                insertAdditionalTasks(editor),
+                insertMath(editor)
+              ],
+              query
+            )
+          }
+        />
+      </BlockNoteView>
+      <Button variant="outlined" onClick={handleSave}>Submit</Button>
+    </div>
   )
 }

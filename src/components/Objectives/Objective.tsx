@@ -25,9 +25,12 @@ const ObjectiveBlockComponent = (props) => {
   const [name, setName] = useState(props.block.props.name);
 
   const handleKeyChange = (e) => {
-    setKey(e.target.value);
+    const value = e.target.value;
+    if (value.includes(' ')) return;
+    setKey(value);
+
     props.editor.updateBlock(props.block, {
-      props: { key: e.target.value },
+      props: { key: value },
     })
   };
 

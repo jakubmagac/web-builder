@@ -318,10 +318,6 @@ const SideBar = ({
   const [folderName, setFolderName] = useState('');
   const [rootFileName, setRootFileName] = useState('');
 
-  useEffect(() => {
-    console.log(openedFile)
-  }, [openedFile])
-
   const content = folderStructure.content?.map((item) => {
     return (
       <SideBarButton 

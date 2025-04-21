@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 import "./App.css";
-import { Editor } from "./Editor";
+import { Editor, ErrorObject } from "./Editor";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -22,12 +22,13 @@ export default function App() {
   const [error, setError] = useState('');
   const [finalMarkdown, setFinalMarkdown] = useState('');
   const [fileSaved, setFileSaved] = useState(false);
+  const [errors, setErrors] = useState<ErrorObject>({})
+  const [usedFilesFromDocuments, setUsedFilesFromDocuments] = useState<string[]>([]);
 
   useEffect(() => {
     getFolderStructure()
   }, [])
   
-
   async function getFolderStructure() {
     setError('')
     try {
@@ -42,11 +43,19 @@ export default function App() {
     setIsConfig(false);
     setFile('')
     setFileSaved(false)
+    setUsedFilesFromDocuments([])
 
     try {
-      const response = await axios.get(`http://localhost:3000/file?folderPath=${path}&root=${root}`)
+      const response = await axios.get(`http://localhost:3000/file?filePath=${path}&root=${root}`)
       setFile(response.data)
       setOpenedFile(root ? ('course/content/' + path) : path)
+    } catch (error) {
+      console.error(error);
+    }
+
+    try {
+      const response = await axios.get(`http://localhost:3000/resources?filePath=${path}&root=${root}`)
+      setUsedFilesFromDocuments(response.data)
     } catch (error) {
       console.error(error);
     }
@@ -119,6 +128,21 @@ export default function App() {
     } catch (error) {
       setError(error.response.data.error)
     }
+
+    const matches = [...content.matchAll(/!\[.*?\]\(images\/(.*?)\)/g)];
+    const filenames = matches.map(match => match[1]);
+
+    try {
+      const response = await axios.delete(`http://localhost:3000/resources?filePath=${path}`,{
+        data: { allowedFiles: [...new Set([...usedFilesFromDocuments, ...filenames])] }
+      })
+
+      if(response.status === 200) {
+        setFileSaved(true)
+      }
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   const createFolder = async (name: string) => {
@@ -139,7 +163,7 @@ export default function App() {
     setFileSaved(false)
 
     try {
-      const response = await axios.delete(`http://localhost:3000/file?filePath=${fileToRemove}`);
+      await axios.delete(`http://localhost:3000/file?filePath=${fileToRemove}`);
       setShowRemoveModal(false)
       getFolderStructure();
       setFile('');
@@ -152,8 +176,7 @@ export default function App() {
     setFileSaved(false)
 
     try {
-      console.log(folderToRemove)
-      const response = await axios.delete(`http://localhost:3000/folder?name=${folderToRemove}`);
+      await axios.delete(`http://localhost:3000/folder?name=${folderToRemove}`);
       setShowRemoveModal(false)
       getFolderStructure();
       setFile('');
@@ -217,6 +240,7 @@ export default function App() {
                 openedFilePath={openedFile}
                 setFinalMarkdown={setFinalMarkdown}
                 finalMarkdown={finalMarkdown}
+                setErrors={setErrors}
               />
             ) 
             : <ConfigPage />
@@ -233,17 +257,28 @@ export default function App() {
           )
         }
       </div>
-      <div className="debugger overflow-auto w-[30%]">
-        <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }} className="border-b-2">
-          {finalMarkdown}
-        </pre>
-        <p>Errors:</p>
-        {
-          fileSaved && (
-            <span className="bg-green-700">File Saved</span>
-          )
-        }
-      </div>
+      {
+        !isConfig && file && (
+          <div className="debugger overflow-auto w-[30%]">
+            <p className="">Errors:</p>
+            {errors?.noObjectiveError && <div className="text-red-400 mb-2">{errors.noObjectiveError}</div>}
+            {errors?.order && <div className="text-red-400 mb-2">{errors.order}</div>}
+            {errors?.duplicates && <div className="text-red-400 mb-2">{errors.duplicates}</div>}
+            {errors?.resourceChildren && <div className="text-red-400 mb-2">{errors.resourceChildren}</div>}
+            {errors?.additionalTasksChildren && <div className="text-red-400 mb-2">{errors.additionalTasksChildren}</div>}
+            {errors?.objectivesChildren && <div className="text-red-400 mb-2">{errors.objectivesChildren}</div>}
+            {errors?.noStepError && <div className="text-red-400 mb-2">{errors.noStepError}</div>}
+            {errors?.objectiveStepKeys && <div className="text-red-400 mb-2">{errors.objectiveStepKeys}</div>}
+            {errors?.noSelfNesting && <div className="text-red-400 mb-2">{errors.noSelfNesting}</div>}
+            {errors?.taskSolutionResultOrder && <div className="text-red-400 mb-2">{errors.taskSolutionResultOrder}</div>}
+            {
+              fileSaved && (
+                <div className="text-green-700 font-bold">File Saved</div>
+              )
+            }
+          </div>
+        )
+      }
     </div>
   )
   

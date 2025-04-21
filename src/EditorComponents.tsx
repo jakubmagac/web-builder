@@ -17,6 +17,7 @@ import { WrongExample } from "./components/WrongExample/WrongExample";
 import { AdditionalResources } from "./components/AdditionalResources/AdditionalResource";
 import { AdditionalTasks } from "./components/AdditionalTasks/AdditionalTasks";
 import { Math } from "./components/Math/Math";
+import { YouTubeBlock } from "./components/YoutubeVideo/YoutubeVideo";
 import KPIIcon from "./assets/kpi";
 
 type Introduction = typeof schema.Block;
@@ -37,6 +38,7 @@ type WrongExample = typeof schema.Block;
 type AdditionalResources = typeof schema.Block;
 type AdditionalTasks = typeof schema.Block;
 type Math = typeof schema.Block;
+type YouTubeBlock = typeof schema.Block;
 
 export const schema = BlockNoteSchema.create({
   blockSpecs: {
@@ -58,7 +60,8 @@ export const schema = BlockNoteSchema.create({
     wrongExample: WrongExample,
     additionalResources: AdditionalResources,
     additionalTasks: AdditionalTasks,
-    math: Math
+    math: Math,
+    youtube: YouTubeBlock
   },
 });
 
@@ -454,6 +457,24 @@ export const insertMath = (editor: typeof schema.BlockNoteEditor) => ({
   },
   aliases: [
     "math",
+  ],
+  group: "KPIMark",
+  icon: <div className="w-[20px]">
+    <KPIIcon />
+  </div>,
+});
+
+export const insertYoutube = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Youtube",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "youtube",
+    });
+
+    editor.focus()
+  },
+  aliases: [
+    "youtube",
   ],
   group: "KPIMark",
   icon: <div className="w-[20px]">

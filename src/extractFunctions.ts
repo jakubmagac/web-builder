@@ -149,7 +149,7 @@ export function transformSyntax(lines: string[]) {
     "Vyučujúci": "lecturer",
     "Príklad": "example",
     "Nesprávny príklad": "wrongExample",
-    "Task": "task", // Pre prípad, že sa použije anglická verzia
+    "Task": "task", 
     "Solution": "solution",
     "Result": "result",
     "Comment": "comment",
@@ -278,19 +278,6 @@ export function transformSyntax(lines: string[]) {
       parent.push(markdownBlock);
     }
   }
-
-  function cleanMarkdownContent(obj) {
-    if (obj && typeof obj === 'object') {
-      if (obj.hasOwnProperty('_markdownContent')) {
-        // delete obj._markdownContent;
-      }
-      if (Array.isArray(obj.children)) {
-        obj.children.forEach(cleanMarkdownContent);
-      }
-    }
-  }
-
-  result.forEach(cleanMarkdownContent);
 
   return result;
 }

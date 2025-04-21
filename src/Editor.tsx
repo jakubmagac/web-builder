@@ -18,7 +18,8 @@ import {
   insertAdditionalResource, 
   insertAdditionalTasks, 
   insertObjective,
-  insertMath
+  insertMath,
+  insertYoutube
 } from "./EditorComponents";
 import {
   SuggestionMenuController,
@@ -36,8 +37,19 @@ import {
 import { schema } from "./EditorComponents";
 import { Block } from "@blocknote/core";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@mui/material";
+
+import { validateOrder } from './validators/validateOrder';
+import { validateDuplicates } from './validators/validateDuplicates';
+import { validateObjectivePresence } from './validators/validateObjectivePresence';
+import { validateResourceChildren } from './validators/validateResourceChildren';
+import { validateAdditionalTasksChildren } from "./validators/validateAdditionalTasksChildren";
+import { validateObjectivesChildren } from "./validators/validateObjectivesChildren";
+import { validateStepPresence } from "./validators/validateStepPresence";
+import { validateObjectiveStepKeyUsage } from "./validators/validateObjectiveStepKeyUsage";
+import { validateNoSelfNestedBlocks } from "./validators/validateNoSelfNestedBlocks";
+import { validateTaskSolutionResultOrder } from "./validators/validateTaskSolutionResultOrder";
 
 interface EditorProps { 
   file: string, 
@@ -45,74 +57,71 @@ interface EditorProps {
   setLoading: (val: boolean) => void;
   finalMarkdown: string;
   setFinalMarkdown: (val: string) => void;
+  setErrors: (val: ErrorObject) => void;
   uploadFile: (file: File) => Promise<string>;
   writeFile: (path: string, content: string) => Promise<void>;
 }
 
-export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath, setFinalMarkdown, finalMarkdown }: EditorProps) => {
+export type ErrorObject = { [key: string]: string };
+export type ValidatorFn = (blocks: Block[]) => ErrorObject;
+
+const kpiMarkBlocks = [
+  "task",
+  "solution",
+  "result",
+  "comment",
+  "warning",
+  "lecturer",
+  "example",
+  "wrongExample",
+];
+
+const keywordMap = {
+  "Task": "task",
+  "Solution": "solution",
+  "Result": "result",
+  "Comment": "comment",
+  "Warning": "warning",
+  "Lecturer": "lecturer",
+  "Example": "example",
+  "Wrong example": "wrongExample"
+};
+
+const supportedMarkdownTypes =  [
+  "paragraph",
+  "heading",
+  "codeBlock",
+  "bulletListItem",
+  "numberedListItem",
+  "checkListItem",
+  "table",
+  "file",
+  "image",
+  "video",
+  "audio",
+  "youtube"
+];
+
+export const Editor = ({ 
+  file, 
+  setLoading, 
+  uploadFile, 
+  writeFile, 
+  openedFilePath, 
+  setFinalMarkdown, 
+  setErrors, 
+  finalMarkdown 
+}: EditorProps) => {
+
   const editor = useCreateBlockNote({ 
     schema,
     uploadFile
   }, [file])
 
   const [blocks, setBlocks] = useState<Block[]>(editor.document);
-  console.log(blocks)
-  
-  useEffect(() => {
-    setLoading(true)
-    transformToSchema(file);
-    setLoading(false)
-  }, [file])
+  // console.log(blocks)
 
-  useEffect(() => {
-    const getMarkdown = async () => {
-      const markdown = await transformToKPIMark(blocks) || ''
-      setFinalMarkdown(markdown)
-    };
-  
-    getMarkdown();
-    runValidators(blocks)
-  }, [blocks]);
-
-  const runValidators = (blocks) => {
-    let containsObjectives = false;
-    for (const block of blocks) {
-      if(block.type === 'objectives') {
-        containsObjectives = true
-      } 
-    }
-
-    return {
-
-    }
-  }
-
-  const supportedMarkdownTypes = [
-    "paragraph",
-    "heading",
-    "codeBlock",
-    "bulletListItem",
-    "numberedListItem",
-    "checkListItem",
-    "table",
-    "file",
-    "image",
-    "video",
-    "audio"
-  ];
-
-  const kpiMarkBlocks = [
-    "task",
-    "solution",
-    "result",
-    "comment",
-    "warning",
-    "lecturer",
-    "example",
-    "wrongExample"
-  ];
-
-  async function transformBlocksToSyntax(blocks, indentLevel = 1) {
+  const transformBlocksToSyntax = useCallback(async (blocks, indentLevel = 1) => {
     let output = '';
     const indent = '> '.repeat(indentLevel);
   
@@ -131,10 +140,6 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
           const title = block.props.exampleName ? ` ${block.props.exampleName}` : '';
           const hiddenStar = block.props.defaultHiddenValue ? '*' : '';
 
-          if(block.props.defaultHiddenValue) {
-            console.log(block)
-          }
-
           output += `${indent}${keyword}${hiddenStar}:${title}\n`;
           
           if (block.children && block.children.length > 0) {
@@ -150,20 +155,79 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
           }
           break; }
         default:
-          output += indent + await editor.blocksToMarkdownLossy([block]) + '\n';
-          break;
+          const blockToAppend = block;
+
+          if(block.type === 'image') {
+            blockToAppend.props.url = 
+              block.props.url.substring(block.props.url.indexOf('images/'))
+          }
+
+          if(block.type === 'youtube') {
+            output += indent 
+              + `![${block.props.name}](youtube:${block.props.videoId}${block.props.caption && ` "${block.props.caption}"`})\n\n`;
+            break;
+          }
+
+          if(block.type === 'video') {
+            output += indent 
+              + `![${block.props.name}](video:${block.props.url}${block.props.caption && ` "${block.props.caption}"`})\n\n`;
+            break;
+          }
+
+          if(block.type === 'audio') {
+            output += indent 
+              + `![${block.props.name}](audio:${block.props.url}${block.props.caption && ` "${block.props.caption}"`})\n\n`;
+            break;
+          }
+
+          if(block.type === 'file') {
+            output += indent 
+              + `![${block.props.name}](${block.props.url.match(/images\/.*$/)[0]}${block.props.caption && ` "${block.props.caption}"`})\n\n`;
+            break;
+          }
+
+
+          if(block.type === 'math' || block.type === 'codeBlock') {
+            if(block.type === 'math') {
+              output += indent + "$$" + '\n'
+  
+              const result = block.children
+                .map(child => indent + child.content[0].text)
+  
+              result.forEach(element => {
+                output += element + '\n'
+              });
+  
+              output += indent + "$$" + '\n'
+            }
+  
+            if(block.type === 'codeBlock') {
+              const codePart = await editor.blocksToMarkdownLossy([blockToAppend]);
+              const result = codePart
+                .split('\n')
+                .map(line => indent + line)
+                .join('\n')
+                .replace(/\n$/, '');
+              
+              output += result
+  
+            }
+          } else {
+            output += indent + await editor.blocksToMarkdownLossy([blockToAppend]) + '\n';
+            break;
+          }
       }
     }
   
     return output.trimEnd();
-  }
+  }, [editor])
 
   const handleSave = () => {
     writeFile(openedFilePath, finalMarkdown)
   }
 
 
-  const transformToSchema = async (data: string) => {
+  const transformToSchema = useCallback(async (data: string) => {
     if(!data) return;
 
     const lines = data.concat('\n').split('\n');
@@ -429,9 +493,74 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
 
       if (!wasInserted && !/^>/.test(line) && line !== '') {
         const markdown = await editor.tryParseMarkdownToBlocks(line)
+
+
         if(markdown[0].type === 'image') {
-          markdown[0].props.url = 'http://localhost:3000/course/content/labs/' + markdown[0].props.url
-          console.log(markdown[0].props.url)
+
+
+          // check if not youtube
+          if(markdown[0].props.url.match(/youtube:/g)) {
+            const match = line.match(/!\[(.*?)\]\(youtube:(\S+)(?:\s+"(.*?)")?\)/);
+            const label = match[1];
+            const url = match[2];
+            const description = match[3];
+
+            markdown[0].type = 'youtube'
+            markdown[0].props.videoId = url
+            markdown[0].props.name = label
+            markdown[0].props.caption = description || ''
+
+            editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+            continue;
+          }
+
+          // or video
+          if(markdown[0].props.url.match(/video:/g)) {
+
+            const match = line.match(/!\[(.*?)\]\(video:(\S+)(?:\s+"(.*?)")?\)/);
+            const label = match[1];
+            const url = match[2];
+            const description = match[3] || '';
+
+            markdown[0].type = 'video'
+            markdown[0].props.url = url
+            markdown[0].props.name = label
+            markdown[0].props.caption = description
+
+            editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+            continue;
+          }
+
+          // or audio
+          if(markdown[0].props.url.match(/audio:/g)) {
+
+            const match = line.match(/!\[(.*?)\]\(audio:(\S+)(?:\s+"(.*?)")?\)/);
+            const label = match[1];
+            const url = match[2];
+            const description = match[3] || '';
+
+            markdown[0].type = 'audio'
+            markdown[0].props.url = url
+            markdown[0].props.name = label
+            markdown[0].props.caption = description
+
+            editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
+            continue;
+          }
+
+          // or else this
+          const imagePath = openedFilePath.substring(0, openedFilePath.lastIndexOf('/'))
+
+          const match = line.match(/!\[(.*?)\]/)
+
+          markdown[0].props.url = markdown[0].props.url.startsWith('http://localhost:3000') 
+              ? markdown[0].props.url
+              : 'http://localhost:3000' + (
+                  markdown[0].props.url.startsWith('/') ? markdown[0].props.url : '/' + imagePath + '/' + markdown[0].props.url
+              )
+          if(match) {
+            markdown[0].props.name = match[1]
+          }
         }
         editor.insertBlocks(markdown, editor.document[editor.document.length - 1].id);
       }
@@ -439,83 +568,103 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
     }
 
     async function traverseElementsAndUpdate(elements, parent, indexInParent) {
-      if (Array.isArray(elements)) {
-        for (let i = 0; i < elements.length; i++) {
-          const element = elements[i];
-    
-          if (element.type === 'markdown' && element._markdownContent) {
-            if (element.isCodeBlock || element.isMath) {
-              if(element.isCodeBlock) {
-                const markdown = 
-                  await editor.tryParseMarkdownToBlocks('```\n' + element._markdownContent + '\n```')
-                elements[i] = markdown[0];
-              }
-              if(element.isMath) {
-                const children = 
-                  await editor.tryParseMarkdownToBlocks(element._markdownContent)
-
-                const markdown = 
-                  [{ type: "math", children: children }]
-                elements[i] = markdown[0];
-              }
-              
-            } else {
-              // Bežné markdown bloky spracujeme ako predtým
-              const blocksFromMarkdown = await editor.tryParseMarkdownToBlocks(element._markdownContent);
-              if (Array.isArray(blocksFromMarkdown) && blocksFromMarkdown.length > 0) {
-                elements[i] = { ...blocksFromMarkdown[0], children: element.children };
-                if (blocksFromMarkdown.length > 1) {
-                  elements.splice(i + 1, 0, ...blocksFromMarkdown.slice(1).map(block => ({ ...block, children: [] })));
-                  i += blocksFromMarkdown.length - 1;
-                }
-              } else if (blocksFromMarkdown && typeof blocksFromMarkdown === 'object') {
-                elements[i] = { ...blocksFromMarkdown, children: element.children };
-              }
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i];
+  
+        if (element.type === 'markdown' && element._markdownContent) {
+          if (element.isCodeBlock || element.isMath) {
+            if(element.isCodeBlock) {
+              const markdown = 
+                await editor.tryParseMarkdownToBlocks('```\n' + element._markdownContent + '\n```')
+              elements[i] = markdown[0];
             }
-          }
-    
-          if (element.children && Array.isArray(element.children)) {
-            await traverseElementsAndUpdate(element.children, elements, i);
-          }
-        }
-      } else if (elements && typeof elements === 'object') { // ak je to samostatny objekt
-        if (elements.type === 'markdown' && elements._markdownContent && parent && typeof indexInParent === 'number') {
-
-          if (elements.isCodeBlock || elements.isMath) {
-            if(elements.isCodeBlock) {
-              const markdown =
-                await editor.tryParseMarkdownToBlocks('```\n' + elements._markdownContent + '\n```');
-              if (Array.isArray(markdown) && markdown.length > 0) {
-                parent[indexInParent] = markdown[0];
-              }
-            }
-            if(elements.isMath) {
+            if(element.isMath) {
               const children = 
-                await editor.tryParseMarkdownToBlocks(elements._markdownContent)
+                element._markdownContent
+                  .split('\n')
+                  .map((e: string) => ({ type: "paragraph", content: e }))
 
-              if (Array.isArray(children) && children.length > 0) {
-                parent[indexInParent] = children[0];
+              const markdown = 
+                [{ type: "math", children: children }]
+              elements[i] = markdown[0];
+            }
+            
+          } else {
+            const blocksFromMarkdown = await editor.tryParseMarkdownToBlocks(element._markdownContent);
+
+            const blocksToAppend = blocksFromMarkdown;
+
+            for(const block of blocksToAppend) {
+              if(block.type === 'image') {
+
+                // check if not youtube
+                if(block.props.url.match(/youtube:/g)) {
+                  const match = element._markdownContent.match(/!\[(.*?)\]\(youtube:(\S+)(?:\s+"(.*?)")?\)/);
+                  const label = match[1];
+                  const url = match[2];
+                  const description = match[3] || '';
+
+                  block.props.type = 'youtube'
+                  block.props.videoId = url
+                  block.props.name = label
+                  block.props.caption = description
+                  continue;
+                }
+
+                // or video
+                if(block.props.url.match(/video:/g)) {
+                  const match = element._markdownContent.match(/!\[(.*?)\]\(video:(\S+)(?:\s+"(.*?)")?\)/);
+                  const label = match[1];
+                  const url = match[2];
+                  const description = match[3] || '';
+
+                  block.props.type = 'video'
+                  block.props.url = url
+                  block.props.name = label
+                  block.props.caption = description
+                  continue;
+                }
+
+                // or audio
+                if(block.props.url.match(/audio:/g)) {
+                  const match = element._markdownContent.match(/!\[(.*?)\]\(audio:(\S+)(?:\s+"(.*?)")?\)/);
+                  const label = match[1];
+                  const url = match[2];
+                  const description = match[3] || '';
+
+                  block.props.type = 'audio'
+                  block.props.url = url
+                  block.props.name = label
+                  block.props.caption = description
+                  continue;
+                }
+
+                block.props.url = 'http://localhost:3000' + (
+                  block.props.url.startsWith('/') ? block.props.url : '/' + block.props.url
+                )
               }
             }
-          }
-          
-          else {
-            const blocksFromMarkdown = await editor.tryParseMarkdownToBlocks(elements._markdownContent);
+            
             if (Array.isArray(blocksFromMarkdown) && blocksFromMarkdown.length > 0) {
-              parent[indexInParent] = { ...blocksFromMarkdown[0], children: elements.children };
+              elements[i] = { ...blocksFromMarkdown[0], children: element.children };
+              if (blocksFromMarkdown.length > 1) {
+                elements.splice(i + 1, 0, ...blocksFromMarkdown.slice(1).map(block => ({ ...block, children: [] })));
+                i += blocksFromMarkdown.length - 1;
+              }
             } else if (blocksFromMarkdown && typeof blocksFromMarkdown === 'object') {
-              parent[indexInParent] = { ...blocksFromMarkdown, children: elements.children };
+              elements[i] = { ...blocksFromMarkdown, children: element.children };
             }
           }
         }
-        if (elements.children && Array.isArray(elements.children)) {
-          await traverseElementsAndUpdate(elements.children, elements, null);
+  
+        if (element.children && Array.isArray(element.children)) {
+          await traverseElementsAndUpdate(element.children, elements, i);
         }
       }
     }
-  }
+  }, [editor])
 
-  const transformToKPIMark = async (data: Block[]) => {
+  const transformToKPIMark = useCallback(async (data: Block[]) => {
     if(!data) return
 
     let markdown = ''
@@ -541,7 +690,7 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
         }
 
         markdown += 'Validation: ' + (element.props.validation ? 'strict' : 'None') + '\n'
-        markdown += '---\n'
+        markdown += '---\n\n'
       }
 
       if(element.type === 'introduction') {
@@ -588,31 +737,100 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
         markdown += markdownFromBlocks + '\n';
       }
 
+      if(element.type === 'math') {
+          markdown += "$$" + '\n'
+
+          const result = element.children
+            .map(child => child.content[0].text)
+
+          result.forEach(element => {
+            markdown += element + '\n'
+          });
+
+          markdown += "$$" + '\n'
+      }
+
       if(kpiMarkBlocks.includes(element.type)) {
         const markdownFromBlocks = await transformBlocksToSyntax([element]);
         markdown += markdownFromBlocks + '\n';
       }
 
       if(supportedMarkdownTypes.includes(element.type)) {
-        const markdownFromBlocks = await editor.blocksToMarkdownLossy([element]);
+        const blockToAppend = element;
+
+        if(element.type === 'file') {
+          blockToAppend.props.url = 
+            element.props.url.substring(element.props.url.indexOf('images/'))
+        }
+
+        if(element.type === 'image') {
+          blockToAppend.props.url = 
+            element.props.url.substring(element.props.url.indexOf('images/'))
+        }
+
+        if(element.type === 'youtube') {
+          markdown += `![${blockToAppend.props.name}](youtube:${blockToAppend.props.videoId} "${blockToAppend.props.caption}")\n\n`;
+          continue;
+        }
+
+        if(element.type === 'video') {
+          markdown += `![${blockToAppend.props.name}](video:${blockToAppend.props.url}${blockToAppend.props.caption && ' "' + blockToAppend.props.caption + '"'})\n\n`;
+          continue;
+        }
+
+        if(element.type === 'audio') {
+          markdown += `![${blockToAppend.props.name}](audio:${blockToAppend.props.url}${blockToAppend.props.caption && ' "' + blockToAppend.props.caption + '"'})\n\n`;
+          continue;
+        }
+
+        const markdownFromBlocks = await editor.blocksToMarkdownLossy([blockToAppend]);
         markdown += markdownFromBlocks + '\n'
       }
 
     }
 
     return markdown;
-  }
+  }, [editor, transformBlocksToSyntax])
 
-  const keywordMap = {
-    "Task": "task",
-    "Solution": "solution",
-    "Result": "result",
-    "Comment": "comment",
-    "Warning": "warning",
-    "Lecturer": "lecturer",
-    "Example": "example",
-    "Wrong example": "wrongExample"
-  };
+  useEffect(() => {
+    setLoading(true)
+    transformToSchema(file);
+    setLoading(false)
+  }, [file, setLoading, transformToSchema])
+
+  useEffect(() => {
+    const getMarkdown = async () => {
+      const markdown = await transformToKPIMark(blocks) || ''
+      setFinalMarkdown(markdown)
+    };
+
+    const validators: ValidatorFn[] = [
+      validateOrder,
+      validateDuplicates,
+      validateObjectivePresence,
+      validateResourceChildren,
+      validateAdditionalTasksChildren,
+      validateObjectivesChildren,
+      validateStepPresence,
+      validateObjectiveStepKeyUsage,
+      validateNoSelfNestedBlocks,
+      validateTaskSolutionResultOrder
+    ];
+
+    const runValidators = (blocks: Block[], setErrors: (e: ErrorObject) => void) => {
+      const allErrors: ErrorObject = {};
+
+      validators.forEach(validator => {
+        const result = validator(blocks);
+        Object.assign(allErrors, result);
+      });
+
+      setErrors(allErrors);
+    }
+  
+    getMarkdown();
+    runValidators(blocks, setErrors)
+  }, [blocks, setErrors, transformToKPIMark, setFinalMarkdown]);
   
   if(!file) {
     return <>Not selected file</>
@@ -652,14 +870,17 @@ export const Editor = ({ file, setLoading, uploadFile, writeFile, openedFilePath
                 insertWrongExample(editor),
                 insertAdditionalResource(editor),
                 insertAdditionalTasks(editor),
-                insertMath(editor)
+                insertMath(editor),
+                insertYoutube(editor)
               ],
               query
             )
           }
         />
       </BlockNoteView>
-      <Button variant="outlined" onClick={handleSave}>Submit</Button>
+      <div className="ml-13">
+        <Button variant="outlined" onClick={handleSave}>Submit</Button>
+      </div>
     </div>
   )
 }
